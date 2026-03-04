@@ -1,71 +1,47 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Operator</title>
-  <style>
-    body { font-family: system-ui, sans-serif; margin: 20px; }
-    .kr { font-size: 28px; font-weight: 700; line-height: 1.3; }
-    .meta { margin-top: 8px; opacity: 0.7; }
-    button { font-size: 20px; padding: 12px 18px; margin-right: 10px; }
-    input { font-size: 18px; padding: 8px; width: 120px; }
-    textarea { width: 100%; height: 90px; font-size: 18px; margin-top: 10px; }
-    .row { margin-top: 12px; }
-  </style>
+<meta charset="utf-8">
+<title>Operator</title>
+<style>
+body{font-family:sans-serif;padding:20px}
+.kr{font-size:26px;font-weight:bold}
+button{font-size:20px;margin:5px;padding:10px}
+</style>
 </head>
 <body>
-  <h2>오퍼레이터</h2>
-  <div id="status">연결중...</div>
-
-  <div class="row">
-    <div><b>현재 큐:</b> <span id="cueId">-</span> / <span id="total">-</span></div>
-    <div class="kr" id="kr">-</div>
-    <div class="meta" id="en">-</div>
-  </div>
-
-  <div class="row">
-    <button onclick="sendCtrl('prev')">이전</button>
-    <button onclick="sendCtrl('next')">다음</button>
-    <input id="jump" placeholder="큐번호" />
-    <button onclick="jump()">점프</button>
-  </div>
-
-  <div class="row">
-    <div><b>라이브 입력 (KR)</b> — 전송하면 잠깐 표시</div>
-    <textarea id="live" placeholder="예: 배우가 관객에게 질문한다"></textarea>
-    <button onclick="sendLive()">전송</button>
-    <button onclick="clearLive()">라이브 지우기</button>
-  </div>
-
+<h2>Operator</h2>
+<div>현재 큐: <span id="cueId">-</span></div>
+<div class="kr" id="kr"></div>
+<div>
+<button onclick="prev()">PREV</button>
+<button onclick="next()">NEXT</button>
+</div>
 <script>
-  const ws = new WebSocket(`ws://${location.host}`);
-  ws.onopen = () => {
-    document.getElementById('status').textContent = '연결됨';
-    ws.send(JSON.stringify({ type: 'hello', role: 'operator' }));
-  };
-  ws.onclose = () => document.getElementById('status').textContent = '연결끊김';
-  ws.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    if (msg.type === 'operator_state') {
-      document.getElementById('cueId').textContent = msg.payload.cueId;
-      document.getElementById('total').textContent = msg.payload.total;
-      document.getElementById('kr').textContent = msg.payload.kr || '';
-      document.getElementById('en').textContent = msg.payload.en || '';
-    }
-  };
-
-  function sendCtrl(action) { ws.send(JSON.stringify({ type:'control', action })); }
-  function jump() {
-    const v = Number(document.getElementById('jump').value);
-    if (!v) return;
-    ws.send(JSON.stringify({ type:'control', action:'jump', cueId: v }));
+const WS_PROTO = location.protocol === "https:" ? "wss" : "ws";
+const ws = new WebSocket(`${WS_PROTO}://${location.host}`);
+ws.onopen = () => {
+  ws.send(JSON.stringify({type:"hello",role:"operator"}))
+}
+ws.onmessage = e => {
+  const msg = JSON.parse(e.data)
+  if(msg.type === "operator_state"){
+    document.getElementById("cueId").textContent = msg.payload.cueId
+    document.getElementById("kr").textContent = msg.payload.kr
   }
-  function sendLive() {
-    const kr = document.getElementById('live').value;
-    ws.send(JSON.stringify({ type:'live', kr }));
-  }
-  function clearLive() { ws.send(JSON.stringify({ type:'live', kr: '' })); }
+}
+function next(){
+ws.send(JSON.stringify({
+type:"control",
+action:"next"
+}))
+}
+function prev(){
+ws.send(JSON.stringify({
+type:"control",
+action:"prev"
+}))
+}
 </script>
 </body>
 </html>
