@@ -28,7 +28,7 @@
         <option value="uz">Oʻzbek / Uzbek</option>
         <option value="mn">Монгол / Mongolian</option>
     </select>
-    <button id="start">Start</button>
+    
     <span id="status" class="small"></span>
   </div>
 
@@ -57,37 +57,35 @@
   let started = false;
   let liveTimer = null;
 
-  const tips = {
-  en: "Tip: For best viewing, please disable your phone’s auto-lock.",
-  de: "Tipp: Für die beste Darstellung bitte die automatische Bildschirmsperre deaktivieren.",
-  ko: "팁: 더 안정적으로 보려면 휴대폰의 자동 잠금(화면 꺼짐)을 꺼 주세요.",
-  ja: "ヒント：より安定して表示するため、スマートフォンの自動ロックをオフにしてください。",
-  zh: "提示：为获得更稳定的观看体验，请关闭手机的自动锁屏。",
-  "zh-TW": "提示：為了更穩定的觀看體驗，請關閉手機的自動鎖定。",
-  kk: "Кеңес: Тұрақты көру үшін телефонның автоматты құлыптауын өшіріңіз.",
-  uz: "Maslahat: Barqaror ko‘rish uchun telefoningizning avtomatik qulflashini o‘chiring.",
-  mn: "Зөвлөмж: Илүү тогтвортой үзэхийн тулд утасныхаа автоматаар түгжихийг унтраана уу."
-  };
-  const hintEl = document.getElementById("hint");
-
-  function updateHint() {
-    const lang = langSel.value;           // 현재 선택된 언어
-    hintEl.textContent = tips[lang] || tips.en;
-  }
-  updateHint(); // 처음 로드 시 1번 적용
-
   const statusEl = document.getElementById('status');
   const langSel = document.getElementById('lang');
+  const hintEl = document.getElementById("hint");
 
-  document.getElementById('start').addEventListener('click', async () => {
-    started = true;
-    await requestWakeLock();
-    connect();
-  });
+  // Show JS is running
+
+  // If any JS error happens, show it on screen (so you don't need DevTools)
+
+  const tips = {
+    en: "Tip: For best viewing, please disable your phone’s auto-lock.",
+    de: "Tipp: Für die beste Darstellung bitte die automatische Bildschirmsperre deaktivieren.",
+    ko: "팁: 더 안정적으로 보려면 휴대폰의 자동 잠금(화면 꺼짐)을 꺼 주세요.",
+    ja: "ヒント：より安定して表示するため、スマートフォンの自動ロックをオフにしてください。",
+    zh: "提示：为获得更稳定的观看体验，请关闭手机的自动锁屏。",
+    "zh-TW": "提示：為了更穩定的觀看體驗，請關閉手機的自動鎖定。",
+    kk: "Кеңес: Тұрақты көру үшін телефонның автоматты құлыптауын өшіріңіз.",
+    uz: "Maslahat: Barqaror ko‘rish uchun telefoningizning avtomatik qulflashini o‘chiring.",
+    mn: "Зөвлөмж: Илүү тогтвортой үзэхийн тулд утасныхаа автоматаар түгжихийг унтраана уу."
+  };
+
+  function updateHint() {
+    const lang = langSel.value;
+    hintEl.textContent = tips[lang] || tips.en;
+  }
+  updateHint();
 
   langSel.addEventListener('change', () => {
     document.getElementById('localLabel').textContent = langSel.value.toUpperCase();
-    updateHint(); // ✅ 이 줄 추가
+    updateHint();
     if (ws && ws.readyState === 1) {
       ws.send(JSON.stringify({ type:'set_lang', lang: langSel.value }));
     }
@@ -97,23 +95,27 @@
     try {
       if ('wakeLock' in navigator) {
         wakeLock = await navigator.wakeLock.request('screen');
-        statusEl.textContent = 'WakeLock ON';
-        wakeLock.addEventListener('release', () => {
-          statusEl.textContent = 'WakeLock released';
-        });
-      } else {
-        statusEl.textContent = 'WakeLock unsupported';
       }
-    } catch (e) {
-      statusEl.textContent = 'WakeLock failed';
-    }
+    } catch {}
   }
 
   function connect() {
+    // If opened as file://, location.host is empty and WebSocket() will throw.
+    if (!location.host) {
+      // opened via file:// – skip websocket
+      return;
+    }
+
     if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
 
     const WS_PROTO = location.protocol === "https:" ? "wss" : "ws";
-    ws = new WebSocket(`${WS_PROTO}://${location.host}`);
+
+    try {
+      ws = new WebSocket(`${WS_PROTO}://${location.host}`);
+    } catch (e) {
+      statusEl.textContent = "WebSocket URL error (check address)";
+      return;
+    }
 
     ws.onopen = () => {
       statusEl.textContent = 'Connected';
@@ -155,6 +157,13 @@
   }
 
   function hideLive() { document.getElementById('liveBox').style.display = 'none'; }
+
+  // Auto-connect on load
+  window.addEventListener("load", async () => {
+    started = true;
+    await requestWakeLock();
+    connect();
+  });
 </script>
 </body>
 </html>
