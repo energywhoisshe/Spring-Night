@@ -135,7 +135,7 @@
       const msg = JSON.parse(e.data);
       if (msg.type === 'state') {
         document.getElementById('en').textContent = msg.payload.en || '';
-        document.getElementById('local').textContent = msg.payload.local || '';
+        document.getElementById('local').textContent = (msg.payload.local || '').replace(/\[[^\]]+\]\s*/g, '');
         if (msg.payload.live) showLive(msg.payload.live);
         else hideLive();
       }
@@ -151,7 +151,7 @@
   function showLive(live) {
     document.getElementById('liveBox').style.display = 'block';
     document.getElementById('liveEn').textContent = live.en || '';
-    document.getElementById('liveLocal').textContent =  live.local || '';
+    document.getElementById('liveLocal').textContent =  (live.local || '').replace(/\[[^\]]+\]\s*/g, '');
 
     if (liveTimer) clearTimeout(liveTimer);
     const ms = Math.max(0, live.expiresAt - Date.now());
