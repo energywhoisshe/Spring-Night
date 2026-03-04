@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stage</title>
+  <style>
+    body { margin: 0; background: black; color: white; font-family: system-ui, sans-serif; }
+    .wrap { position: fixed; left: 0; right: 0; bottom: 5vh; padding: 0 5vw; }
+    .line { font-size: 5vh; font-weight: 700; line-height: 1.15; text-align: center; }
+    .live { position: fixed; left: 0; right: 0; top: 6vh; padding: 0 5vw; text-align: center; }
+    .liveBox { display: inline-block; padding: 1.2vh 2.2vw; border: 2px solid rgba(255,255,255,0.4); border-radius: 16px; background: rgba(0,0,0,0.6); }
+    .liveText { font-size: 4vh; font-weight: 700; line-height: 1.2; }
+    .hint { position: fixed; top: 1vh; left: 1vw; opacity: 0.35; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="hint">F11 전체화면 / Stage</div>
+  <div class="live" id="live" style="display:none;">
+    <div class="liveBox">
+      <div class="liveText" id="liveEN"></div>
+      <div class="liveText" id="liveDE"></div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="line" id="en"></div>
+    <div class="line" id="de"></div>
+  </div>
+
+<script>
+  const ws = new WebSocket(`ws://${location.host}`);
+  let liveTimer = null;
+
+  ws.onopen = () => ws.send(JSON.stringify({ type:'hello', role:'stage' }));
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'state') {
+      document.getElementById('en').textContent = 'EN: ' + (msg.payload.en || '');
+      document.getElementById('de').textContent = 'DE: ' + (msg.payload.de || '');
+    }
+    if (msg.type === 'live') {
+      if (!msg.payload) return hideLive();
+      showLive(msg.payload.en, msg.payload.de, msg.payload.expiresAt);
+    }
+  };
+
+  function showLive(en, de, expiresAt) {
+    document.getElementById('liveEN').textContent = 'EN: ' + (en || '');
+    document.getElementById('liveDE').textContent = 'DE: ' + (de || '');
+    document.getElementById('live').style.display = 'block';
+    if (liveTimer) clearTimeout(liveTimer);
+    const ms = Math.max(0, expiresAt - Date.now());
+    liveTimer = setTimeout(hideLive, ms);
+  }
+  function hideLive() { document.getElementById('live').style.display = 'none'; }
+</script>
+</body>
+</html>

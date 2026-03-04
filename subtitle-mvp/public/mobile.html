@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Subtitles</title>
+  <style>
+    body { margin:0; background:black; color:white; font-family: system-ui, sans-serif; }
+    .top { padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.12); }
+    select, button { font-size: 16px; padding: 10px; }
+    .wrap { padding: 18px; }
+    .label { opacity: 0.7; font-size: 14px; margin-top: 18px; }
+    .text { font-size: 24px; font-weight: 700; line-height: 1.25; }
+    .live { margin-top: 16px; padding: 12px; border: 1px solid rgba(255,255,255,0.18); border-radius: 14px; background: rgba(255,255,255,0.06); }
+    .small { opacity: 0.7; font-size: 12px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <select id="lang">
+      <option value="ko">KR (한국어)</option>
+      <option value="de">DE (Deutsch)</option>
+      <option value="fr">FR</option>
+      <option value="es">ES</option>
+      <option value="it">IT</option>
+      <option value="pt">PT</option>
+      <option value="ja">JA</option>
+      <option value="zh">ZH</option>
+      <option value="th">TH</option>
+      <option value="vi">VI</option>
+    </select>
+    <button id="start">Start</button>
+    <span id="status" class="small"></span>
+  </div>
+
+  <div class="wrap">
+    <div class="label">EN</div>
+    <div class="text" id="en"></div>
+
+    <div class="label" id="localLabel">KR</div>
+    <div class="text" id="local"></div>
+
+    <div class="live" id="liveBox" style="display:none;">
+      <div class="label">LIVE</div>
+      <div class="text" id="liveEn"></div>
+      <div class="text" id="liveLocal"></div>
+    </div>
+
+    <div class="small" style="margin-top:18px; opacity:0.7;">
+      Tip: 가능하면 화면 자동잠금(자동 꺼짐)을 꺼두면 더 안정적입니다.
+    </div>
+  </div>
+
+<script>
+  let ws = null;
+  let wakeLock = null;
+  let reconnectTimer = null;
+  let started = false;
+  let liveTimer = null;
+
+  const statusEl = document.getElementById('status');
+  const langSel = document.getElementById('lang');
+
+  document.getElementById('start').addEventListener('click', async () => {
+    started = true;
+    await requestWakeLock();
+    connect();
+  });
+
+  langSel.addEventListener('change', () => {
+    document.getElementById('localLabel').textContent = langSel.value.toUpperCase();
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type:'set_lang', lang: langSel.value }));
+    }
+  });
+
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        statusEl.textContent = 'WakeLock ON';
+        wakeLock.addEventListener('release', () => {
+          statusEl.textContent = 'WakeLock released';
+        });
+      } else {
+        statusEl.textContent = 'WakeLock unsupported';
+      }
+    } catch (e) {
+      statusEl.textContent = 'WakeLock failed';
+    }
+  }
+
+  function connect() {
+    if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
+
+    ws = new WebSocket(`ws://${location.host}`);
+    ws.onopen = () => {
+      statusEl.textContent = 'Connected';
+      ws.send(JSON.stringify({ type:'hello', role:'mobile', lang: langSel.value }));
+    };
+    ws.onclose = () => {
+      statusEl.textContent = 'Disconnected, retrying...';
+      scheduleReconnect();
+    };
+    ws.onerror = () => {
+      statusEl.textContent = 'Error, retrying...';
+      try { ws.close(); } catch {}
+    };
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'state') {
+        document.getElementById('en').textContent = msg.payload.en || '';
+        document.getElementById('local').textContent = msg.payload.local || '';
+        if (msg.payload.live) showLive(msg.payload.live);
+        else hideLive();
+      }
+    };
+  }
+
+  function scheduleReconnect() {
+    if (!started) return;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(connect, 1500);
+  }
+
+  function showLive(live) {
+    document.getElementById('liveBox').style.display = 'block';
+    document.getElementById('liveEn').textContent = 'EN: ' + (live.en || '');
+    document.getElementById('liveLocal').textContent = (langSel.value.toUpperCase()+': ') + (live.local || '');
+
+    if (liveTimer) clearTimeout(liveTimer);
+    const ms = Math.max(0, live.expiresAt - Date.now());
+    liveTimer = setTimeout(hideLive, ms);
+  }
+
+  function hideLive() { document.getElementById('liveBox').style.display = 'none'; }
+</script>
+</body>
+</html>
