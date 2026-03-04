@@ -20,7 +20,6 @@
 <body>
   <div class="top">
     <select id="lang">
-        <option value="en">English</option>
         <option value="de">Deutsch / German</option>
         <option value="ko">한국어 / Korean</option>
         <option value="ja">日本語 / Japanese</option>
@@ -29,16 +28,17 @@
         <option value="kk">Қазақша / Kazakh</option>
         <option value="uz">Oʻzbek / Uzbek</option>
         <option value="mn">Монгол / Mongolian</option>
+        <option value="vi">Tiếng Việt / Vietnamese</option>
     </select>
     
     <span id="status" class="small"></span>
   </div>
 
   <div class="wrap">
-    <!--<div class="label">EN</div>-->
+    <div class="label">EN</div>
     <div class="text" id="en"></div>
 
-    <!--<div class="label" id="localLabel">Choose Your Language</div>-->
+    <div class="label" id="localLabel">Choose Your Language</div>
     <div class="text" id="local"></div>
 
     <div class="live" id="liveBox" style="display:none;">
@@ -47,9 +47,9 @@
       <div class="text" id="liveLocal"></div>
     </div>
 
-    <div id="hint" class="small" style="margin-top:18px; opacity:0.7;">
+    <!--<div id="hint" class="small" style="margin-top:18px; opacity:0.7;">
       Tip: For best viewing, please disable your phone’s auto-lock.
-    </div>
+    </div>-->
   </div>
 
 <script>
@@ -67,7 +67,7 @@
 
   // If any JS error happens, show it on screen (so you don't need DevTools)
 
-  const tips = {
+  /*const tips = {
     en: "Tip: For best viewing, please disable your phone’s auto-lock.",
     de: "Tipp: Für die beste Darstellung bitte die automatische Bildschirmsperre deaktivieren.",
     ko: "팁: 더 안정적으로 보려면 휴대폰의 자동 잠금(화면 꺼짐)을 꺼 주세요.",
@@ -77,7 +77,7 @@
     kk: "Кеңес: Тұрақты көру үшін телефонның автоматты құлыптауын өшіріңіз.",
     uz: "Maslahat: Barqaror ko‘rish uchun telefoningizning avtomatik qulflashini o‘chiring.",
     mn: "Зөвлөмж: Илүү тогтвортой үзэхийн тулд утасныхаа автоматаар түгжихийг унтраана уу."
-  };
+  };*/
 
   function updateHint() {
     const lang = langSel.value;
@@ -135,7 +135,7 @@
       const msg = JSON.parse(e.data);
       if (msg.type === 'state') {
         document.getElementById('en').textContent = msg.payload.en || '';
-        document.getElementById('local').textContent = (msg.payload.local || '').replace(/\[[^\]]+\]\s*/g, '');
+        document.getElementById('local').textContent = msg.payload.local || '';
         if (msg.payload.live) showLive(msg.payload.live);
         else hideLive();
       }
@@ -151,7 +151,7 @@
   function showLive(live) {
     document.getElementById('liveBox').style.display = 'block';
     document.getElementById('liveEn').textContent = live.en || '';
-    document.getElementById('liveLocal').textContent =  (live.local || '').replace(/\[[^\]]+\]\s*/g, '');
+    document.getElementById('liveLocal').textContent =  live.local || '';
 
     if (liveTimer) clearTimeout(liveTimer);
     const ms = Math.max(0, live.expiresAt - Date.now());
