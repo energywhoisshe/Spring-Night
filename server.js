@@ -102,7 +102,7 @@ async function translateWithDeepL({ text, sourceLang, targetLang }) {
   const key = process.env.DEEPL_AUTH_KEY;
   if (!key) throw new Error("DEEPL_AUTH_KEY is missing.");
 
-  // Free 키는 api-free, Pro 키는 api (대부분 key suffix로 구분 가능하지만, 실패해도 fallback)
+  // Free 키는 api-free, Pro 키는 api
   const isFreeKey = key.endsWith(":fx") || key.includes("free");
   const host = isFreeKey ? "https://api-free.deepl.com" : "https://api.deepl.com";
 
@@ -110,15 +110,20 @@ async function translateWithDeepL({ text, sourceLang, targetLang }) {
   const source = sourceLang.toUpperCase();
   const target = targetLang.toUpperCase();
 
+  // NOTE: 2025년 이후 DeepL은 legacy form-body auth_key 방식이 중단됨.
+  // 반드시 header-based authentication 사용:
+  //   Authorization: DeepL-Auth-Key <KEY>
   const params = new URLSearchParams();
-  params.set("auth_key", key);
   params.set("text", text);
   params.set("source_lang", source);
   params.set("target_lang", target);
 
   const res = await fetch(`${host}/v2/translate`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Authorization": `DeepL-Auth-Key ${key}`,
+    },
     body: params.toString(),
   });
 
@@ -129,6 +134,7 @@ async function translateWithDeepL({ text, sourceLang, targetLang }) {
   const data = await res.json();
   return (data?.translations?.[0]?.text ?? "").toString();
 }
+
 
 async function translateWithGoogle({ text, sourceLang, targetLang }) {
   const key = process.env.GOOGLE_TRANSLATE_API_KEY;
@@ -204,12 +210,32 @@ ${text}`;
 
 async function translateText({ text, sourceLang, targetLang }) {
   if (!text) return "";
-  if (PROVIDER === "deepl") return translateWithDeepL({ text, sourceLang, targetLang });
-  if (PROVIDER === "google") return translateWithGoogle({ text, sourceLang, targetLang });
-  if (PROVIDER === "openai") return translateWithOpenAI({ text, sourceLang, targetLang });
-  // mock
-  return `[${sourceLang}->${targetLang}] ${text}`;
+
+  // IMPORTANT: 공연 중엔 번역 API 문제로 서버가 죽으면 안 됨.
+  // 그래서 provider 호출은 항상 try/catch로 감싸고, 실패 시 안전하게 fallback.
+  try {
+    if (PROVIDER === "deepl") return await translateWithDeepL({ text, sourceLang, targetLang });
+    if (PROVIDER === "google") return await translateWithGoogle({ text, sourceLang, targetLang });
+    if (PROVIDER === "openai") return await translateWithOpenAI({ text, sourceLang, targetLang });
+    // mock
+    return text;
+  } catch (err) {
+    console.error("[translateText] provider failed:", err?.message || err);
+
+    // DeepL을 쓰다가 실패하면(지원 언어/요금/일시 장애 등) Google 키가 있으면 자동 fallback
+    if (PROVIDER === "deepl" && process.env.GOOGLE_TRANSLATE_API_KEY) {
+      try {
+        return await translateWithGoogle({ text, sourceLang, targetLang });
+      } catch (e2) {
+        console.error("[translateText] google fallback failed:", e2?.message || e2);
+      }
+    }
+
+    // 최후: 원문 그대로 반환 (빈칸/크래시 방지)
+    return text;
+  }
 }
+
 
 // 캐시 포함 번역
 async function getOrTranslateCue(cueId, targetLang) {
