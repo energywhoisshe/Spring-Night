@@ -10,9 +10,11 @@
     select, button { font-size: 16px; padding: 10px; }
     .wrap { padding: 18px; }
     .label { opacity: 0.7; font-size: 14px; margin-top: 18px; }
-    .text { font-size: 24px; font-weight: 700; line-height: 1.25; }
+    .text { font-size: clamp(24px, 6vw, 44px); font-weight: 700; line-height: 1.25; word-break: keep-all; overflow-wrap: anywhere;}
     .live { margin-top: 16px; padding: 12px; border: 1px solid rgba(255,255,255,0.18); border-radius: 14px; background: rgba(255,255,255,0.06); }
     .small { opacity: 0.7; font-size: 12px; margin-top: 6px; }
+    #en { opacity:0.85; }
+    #local {font-weight: 600;}
   </style>
 </head>
 <body>
@@ -148,8 +150,8 @@
 
   function showLive(live) {
     document.getElementById('liveBox').style.display = 'block';
-    document.getElementById('liveEn').textContent = 'EN: ' + (live.en || '');
-    document.getElementById('liveLocal').textContent = (langSel.value.toUpperCase()+': ') + (live.local || '');
+    document.getElementById('liveEn').textContent = live.en || '';
+    document.getElementById('liveLocal').textContent =  live.local || '';
 
     if (liveTimer) clearTimeout(liveTimer);
     const ms = Math.max(0, live.expiresAt - Date.now());
